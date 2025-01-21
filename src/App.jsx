@@ -50,115 +50,39 @@ const App = () => {
 
   const processAiAnnotations = (data) => {
     console.log("Processing AI annotations:", data);
-    const leftIntervals = [];
-    const rightIntervals = [];
-
-    let human1LastState = null;
-    let human2LastState = null;
-    let human1Start = null;
-    let human2Start = null;
-
-    // Filter out non-gaze entries and the "total" entry
-    const gazeEntries = data.filter(
-      (entry) =>
-        entry.change_type === "gaze" &&
-        entry.timestamp !== "total" &&
-        (entry.frame !== undefined || entry.timestamp !== undefined),
-    );
-
-    console.log("Filtered gaze entries:", gazeEntries);
-
-    // Convert frame numbers to seconds
-    const getTimeInSeconds = (entry) => {
-      // Both frame and timestamp fields represent frame numbers
-      const frameNumber =
-        entry.frame !== undefined ? entry.frame : entry.timestamp;
-      return frameNumber / (frameRate || 30);
-    };
-
-    gazeEntries.forEach((entry) => {
-      const timeInSeconds = getTimeInSeconds(entry);
-      const { human, contact } = entry.details;
-
-      console.log(
-        `Processing entry: Time=${timeInSeconds}, Human=${human}, Contact=${contact}`,
-      );
-
-      // Note: We've swapped human 1 and 2 to match the correct people
-      if (human === 1) {
-        if (contact !== human1LastState) {
-          // End previous interval if exists
-          if (human1Start !== null && human1LastState === "human") {
-            rightIntervals.push({
-              // Changed from leftIntervals to rightIntervals
-              start: human1Start,
-              end: timeInSeconds,
-            });
-            console.log(
-              `Added right interval: ${human1Start} to ${timeInSeconds}`,
-            );
-          }
-
-          // Start new interval if looking at human
-          if (contact === "human") {
-            human1Start = timeInSeconds;
-            console.log(`Started new right interval at ${timeInSeconds}`);
-          } else {
-            human1Start = null;
-          }
-          human1LastState = contact;
-        }
-      } else if (human === 2) {
-        if (contact !== human2LastState) {
-          // End previous interval if exists
-          if (human2Start !== null && human2LastState === "human") {
-            leftIntervals.push({
-              // Changed from rightIntervals to leftIntervals
-              start: human2Start,
-              end: timeInSeconds,
-            });
-            console.log(
-              `Added left interval: ${human2Start} to ${timeInSeconds}`,
-            );
-          }
-
-          // Start new interval if looking at human
-          if (contact === "human") {
-            human2Start = timeInSeconds;
-            console.log(`Started new left interval at ${timeInSeconds}`);
-          } else {
-            human2Start = null;
-          }
-          human2LastState = contact;
-        }
-      }
-    });
-
-    // Close any open intervals at the end
-    const lastEntry = gazeEntries[gazeEntries.length - 1];
-    const lastTime = lastEntry ? getTimeInSeconds(lastEntry) : 0;
-
-    if (human1Start !== null && human1LastState === "human") {
-      leftIntervals.push({
-        start: human1Start,
-        end: lastTime,
-      });
-      console.log(`Added final left interval: ${human1Start} to ${lastTime}`);
+  
+    // Find the entry containing the manualAnnotations
+    const annotationEntry = data.find(entry => entry.manualAnnotations);
+    
+    if (!annotationEntry) {
+      console.error("No annotation data found in the uploaded file");
+      return;
     }
-    if (human2Start !== null && human2LastState === "human") {
-      rightIntervals.push({
-        start: human2Start,
-        end: lastTime,
-      });
-      console.log(`Added final right interval: ${human2Start} to ${lastTime}`);
-    }
-
-    console.log("Final processed intervals:", {
+  
+    console.log("Found annotation entry:", annotationEntry);
+  
+    // Extract the annotations and convert to time-based intervals
+    const leftIntervals = annotationEntry.manualAnnotations.leftPersonGaze.map(interval => ({
+      start: interval.startFrame / frameRate,
+      end: interval.endFrame / frameRate
+    }));
+  
+    const rightIntervals = annotationEntry.manualAnnotations.rightPersonGaze.map(interval => ({
+      start: interval.startFrame / frameRate,
+      end: interval.endFrame / frameRate
+    }));
+  
+    console.log("Processed intervals:", {
       leftIntervals,
-      rightIntervals,
+      rightIntervals
     });
+  
+    // Update the state with the processed intervals
     setAiLeftGazeIntervals(leftIntervals);
     setAiRightGazeIntervals(rightIntervals);
+    
+    // Store the original data for accuracy calculations
+    setAiAnnotations(annotationEntry.manualAnnotations);
   };
 
   const handleAiAnnotationsUpload = (event) => {
@@ -545,12 +469,28 @@ const App = () => {
                       label="Person on right"
                     />
                     <AccuracyDisplay
+                      aiAnnotations={{
+                        leftPersonGaze: aiLeftGazeIntervals.map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                        rightPersonGaze: aiRightGazeIntervals.map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        }))
+                      }}
+                      manualAnnotations={{
+                        leftPersonGaze: leftGazeIntervals.map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                        rightPersonGaze: rightGazeIntervals.map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        }))
+                      }}
                       duration={duration}
                       frameRate={frameRate}
-                      leftGazeIntervals={leftGazeIntervals}
-                      rightGazeIntervals={rightGazeIntervals}
-                      aiLeftGazeIntervals={aiLeftGazeIntervals}
-                      aiRightGazeIntervals={aiRightGazeIntervals}
                     />
                   </div>
                 </div>

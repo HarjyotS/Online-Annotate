@@ -1,17 +1,14 @@
 import { useMemo } from 'react';
 
 const AccuracyDisplay = ({ 
+  aiAnnotations,
+  manualAnnotations,
   duration,
-  frameRate,
-  leftGazeIntervals,
-  rightGazeIntervals,
-  aiLeftGazeIntervals,
-  aiRightGazeIntervals 
+  frameRate 
 }) => {
   const accuracies = useMemo(() => {
-    if (!duration || !frameRate) return null;
+    if (!aiAnnotations || !manualAnnotations || !duration || !frameRate) return null;
 
-    // Convert time-based intervals to frame-based arrays
     const totalFrames = Math.round(duration * frameRate);
     
     // Create frame arrays for manual annotations
@@ -19,17 +16,17 @@ const AccuracyDisplay = ({
     const manualRightFrames = new Array(totalFrames).fill(false);
     
     // Fill manual frames
-    leftGazeIntervals.forEach(interval => {
-      const startFrame = Math.round(interval.start * frameRate);
-      const endFrame = Math.round(interval.end * frameRate);
+    manualAnnotations.leftPersonGaze.forEach(interval => {
+      const startFrame = interval.startFrame;
+      const endFrame = interval.endFrame;
       for (let i = startFrame; i <= endFrame && i < totalFrames; i++) {
         manualLeftFrames[i] = true;
       }
     });
     
-    rightGazeIntervals.forEach(interval => {
-      const startFrame = Math.round(interval.start * frameRate);
-      const endFrame = Math.round(interval.end * frameRate);
+    manualAnnotations.rightPersonGaze.forEach(interval => {
+      const startFrame = interval.startFrame;
+      const endFrame = interval.endFrame;
       for (let i = startFrame; i <= endFrame && i < totalFrames; i++) {
         manualRightFrames[i] = true;
       }
@@ -40,17 +37,17 @@ const AccuracyDisplay = ({
     const aiRightFrames = new Array(totalFrames).fill(false);
     
     // Fill AI frames
-    aiLeftGazeIntervals.forEach(interval => {
-      const startFrame = Math.round(interval.start * frameRate);
-      const endFrame = Math.round(interval.end * frameRate);
+    aiAnnotations.leftPersonGaze.forEach(interval => {
+      const startFrame = interval.startFrame;
+      const endFrame = interval.endFrame;
       for (let i = startFrame; i <= endFrame && i < totalFrames; i++) {
         aiLeftFrames[i] = true;
       }
     });
     
-    aiRightGazeIntervals.forEach(interval => {
-      const startFrame = Math.round(interval.start * frameRate);
-      const endFrame = Math.round(interval.end * frameRate);
+    aiAnnotations.rightPersonGaze.forEach(interval => {
+      const startFrame = interval.startFrame;
+      const endFrame = interval.endFrame;
       for (let i = startFrame; i <= endFrame && i < totalFrames; i++) {
         aiRightFrames[i] = true;
       }
@@ -64,55 +61,98 @@ const AccuracyDisplay = ({
     const rightAccuracy = manualRightFrames.reduce((acc, curr, idx) => {
       return acc + (curr === aiRightFrames[idx] ? 1 : 0);
     }, 0) / totalFrames * 100;
+
+    // Calculate additional metrics
+    const leftTP = manualLeftFrames.reduce((acc, curr, idx) => 
+      acc + (curr && aiLeftFrames[idx] ? 1 : 0), 0);
+    const leftFP = manualLeftFrames.reduce((acc, curr, idx) => 
+      acc + (!curr && aiLeftFrames[idx] ? 1 : 0), 0);
+    const leftFN = manualLeftFrames.reduce((acc, curr, idx) => 
+      acc + (curr && !aiLeftFrames[idx] ? 1 : 0), 0);
+    
+    const rightTP = manualRightFrames.reduce((acc, curr, idx) => 
+      acc + (curr && aiRightFrames[idx] ? 1 : 0), 0);
+    const rightFP = manualRightFrames.reduce((acc, curr, idx) => 
+      acc + (!curr && aiRightFrames[idx] ? 1 : 0), 0);
+    const rightFN = manualRightFrames.reduce((acc, curr, idx) => 
+      acc + (curr && !aiRightFrames[idx] ? 1 : 0), 0);
     
     return {
-      leftPersonGaze: leftAccuracy,
-      rightPersonGaze: rightAccuracy,
+      leftPersonGaze: {
+        accuracy: leftAccuracy,
+        truePositives: leftTP,
+        falsePositives: leftFP,
+        falseNegatives: leftFN,
+        precision: leftTP / (leftTP + leftFP) * 100,
+        recall: leftTP / (leftTP + leftFN) * 100
+      },
+      rightPersonGaze: {
+        accuracy: rightAccuracy,
+        truePositives: rightTP,
+        falsePositives: rightFP,
+        falseNegatives: rightFN,
+        precision: rightTP / (rightTP + rightFP) * 100,
+        recall: rightTP / (rightTP + rightFN) * 100
+      },
       overall: (leftAccuracy + rightAccuracy) / 2
     };
-  }, [duration, frameRate, leftGazeIntervals, rightGazeIntervals, aiLeftGazeIntervals, aiRightGazeIntervals]);
+  }, [aiAnnotations, manualAnnotations, duration, frameRate]);
 
   if (!accuracies) return null;
 
   return (
     <div className="mt-4 p-4 bg-white rounded-lg shadow-sm">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">AI Annotation Accuracy</h3>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 w-32">Person on left:</span>
-          <div className="flex-1 bg-gray-100 rounded-full h-2">
-            <div 
-              className="bg-blue-500 rounded-full h-2" 
-              style={{ width: `${accuracies.leftPersonGaze}%` }}
-            />
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">AI Annotation Metrics</h3>
+      <div className="space-y-4">
+        <div>
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Person on left</h4>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-gray-500">Accuracy</div>
+              <div className="text-sm font-medium">{accuracies.leftPersonGaze.accuracy.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Precision</div>
+              <div className="text-sm font-medium">{accuracies.leftPersonGaze.precision.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Recall</div>
+              <div className="text-sm font-medium">{accuracies.leftPersonGaze.recall.toFixed(1)}%</div>
+            </div>
           </div>
-          <span className="text-sm font-medium w-16 text-right">
-            {accuracies.leftPersonGaze.toFixed(1)}%
-          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 w-32">Person on right:</span>
-          <div className="flex-1 bg-gray-100 rounded-full h-2">
-            <div 
-              className="bg-blue-500 rounded-full h-2" 
-              style={{ width: `${accuracies.rightPersonGaze}%` }}
-            />
+
+        <div>
+          <h4 className="text-sm font-medium text-gray-600 mb-2">Person on right</h4>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-gray-500">Accuracy</div>
+              <div className="text-sm font-medium">{accuracies.rightPersonGaze.accuracy.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Precision</div>
+              <div className="text-sm font-medium">{accuracies.rightPersonGaze.precision.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Recall</div>
+              <div className="text-sm font-medium">{accuracies.rightPersonGaze.recall.toFixed(1)}%</div>
+            </div>
           </div>
-          <span className="text-sm font-medium w-16 text-right">
-            {accuracies.rightPersonGaze.toFixed(1)}%
-          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 w-32">Overall:</span>
-          <div className="flex-1 bg-gray-100 rounded-full h-2">
-            <div 
-              className="bg-green-500 rounded-full h-2" 
-              style={{ width: `${accuracies.overall}%` }}
-            />
+
+        <div className="pt-2 border-t">
+          <div className="text-sm font-medium text-gray-600">Overall Accuracy</div>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="flex-1 bg-gray-100 rounded-full h-2">
+              <div 
+                className="bg-green-500 rounded-full h-2" 
+                style={{ width: `${accuracies.overall}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium w-16 text-right">
+              {accuracies.overall.toFixed(1)}%
+            </span>
           </div>
-          <span className="text-sm font-medium w-16 text-right">
-            {accuracies.overall.toFixed(1)}%
-          </span>
         </div>
       </div>
     </div>
