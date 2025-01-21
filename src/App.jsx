@@ -4,6 +4,7 @@ import VideoPlayer from "./components/VideoPlayer";
 import VideoTimeline from "./components/VideoTimeline";
 import GazeTimeline from "./components/GazeTimeline";
 import ComparisonTimeline from "./components/ComparisonTimeline";
+import AccuracyDisplay from './components/AccuracyDisplay';
 
 const App = () => {
   const [videoSrc, setVideoSrc] = useState(null);
@@ -542,6 +543,14 @@ const App = () => {
                       currentTime={currentTime}
                       intervals={aiRightGazeIntervals}
                       label="Person on right"
+                    />
+                    <AccuracyDisplay
+                      duration={duration}
+                      frameRate={frameRate}
+                      leftGazeIntervals={leftGazeIntervals}
+                      rightGazeIntervals={rightGazeIntervals}
+                      aiLeftGazeIntervals={aiLeftGazeIntervals}
+                      aiRightGazeIntervals={aiRightGazeIntervals}
                     />
                   </div>
                 </div>
