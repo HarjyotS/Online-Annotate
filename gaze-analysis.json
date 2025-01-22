@@ -1,0 +1,22 @@
+{
+  "videoInfo": {
+    "duration": 3.293792,
+    "filename": "169b033c-208c-451a-a03b-2f8f63375400",
+    "frameRate": 30,
+    "totalFrames": 99
+  },
+  "manualAnnotations": {
+    "leftPersonGaze": [
+      {
+        "startFrame": 0,
+        "endFrame": 99
+      }
+    ],
+    "rightPersonGaze": [
+      {
+        "startFrame": 15,
+        "endFrame": 77
+      }
+    ]
+  }
+}

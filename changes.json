@@ -1,0 +1,1 @@
+[{"timestamp": "total", "change_type": "percentages", "details": {"percentages": [95.0, 0.0, 5.0]}}, {"videoInfo": {"duration": 1.6666666666666667, "frameRate": 30, "totalFrames": 99}, "manualAnnotations": {"leftPersonGaze": [{"startFrame": 0, "endFrame": 99}], "rightPersonGaze": [{"startFrame": 5, "endFrame": 99}]}}]
