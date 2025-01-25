@@ -265,51 +265,6 @@ const App = () => {
     }
   };
 
-  const exportData = () => {
-    // Calculate percentages
-    const totalDuration = duration;
-    const typeDurations = [0, 0, 0];
-    
-    gazeIntervals.forEach(interval => {
-      const duration = interval.end - interval.start;
-      typeDurations[interval.gazeType - 1] += duration;
-    });
-    
-    const percentages = typeDurations.map(d => (d / totalDuration * 100).toFixed(2));
-  
-    const data = [{
-      timestamp: "total",
-      change_type: "percentages",
-      details: {
-        percentages: percentages.map(Number)
-      }
-    }, {
-      videoInfo: {
-        duration,
-        frameRate,
-        totalFrames: Math.round(duration * frameRate)
-      },
-      manualAnnotations: {
-        leftPersonGaze: gazeIntervals
-          .filter(interval => interval.gazeType === 1)
-          .map(interval => ({
-            startFrame: Math.round(interval.start * frameRate),
-            endFrame: Math.round(interval.end * frameRate)
-          }))
-      }
-    }];
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'gaze-analysis.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
@@ -347,13 +302,51 @@ const App = () => {
           <div className="flex gap-4">
             {videoSrc && (
               <>
-                <button
-                  onClick={exportData}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
-                >
-                  <Download size={16} />
-                  Export Data
-                </button>
+              <button
+                onClick={() => {
+                  console.log("Exporting data...");
+                  const data = {
+                    videoInfo: {
+                      duration,
+                      filename: videoSrc ? videoSrc.split('/').pop() : 'unknown',
+                      frameRate,
+                      totalFrames: Math.round(duration * frameRate)
+                    },
+                    manualAnnotations: {
+                      rightPersonScreen: doctorGazeIntervals
+                        .filter(i => i.gazeType === 2)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                      rightPersonGaze: doctorGazeIntervals
+                        .filter(i => i.gazeType === 1)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                      leftPersonGaze: patientGazeIntervals
+                        .filter(i => i.gazeType === 1)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        }))
+                    }
+                  };
+
+                  const blob = new Blob([JSON.stringify(data, null, 2)]);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'gaze-analysis.json';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800"
+              >
+                <Download size={16} />
+                Export Data
+              </button>
                 <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer">
                   <Upload size={16} />
                   <span>Load AI Annotations</span>
