@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Upload, Download } from "lucide-react";
 import VideoPlayer from "./components/VideoPlayer";
 import VideoTimeline from "./components/VideoTimeline";
-import GazeTimeline from "./components/GazeTimeline";
+import DualGazeTimeline from "./components/DualGazeTimeline";
 import ComparisonTimeline from "./components/ComparisonTimeline";
 import AccuracyDisplay from './components/AccuracyDisplay';
 
@@ -23,6 +23,55 @@ const App = () => {
   const [aiAnnotations, setAiAnnotations] = useState(null);
   const [aiLeftGazeIntervals, setAiLeftGazeIntervals] = useState([]);
   const [aiRightGazeIntervals, setAiRightGazeIntervals] = useState([]);
+
+  const [gazeIntervals, setGazeIntervals] = useState([]);
+  const [currentGazeType, setCurrentGazeType] = useState(null);
+  const [gazeStartTime, setGazeStartTime] = useState(null);
+
+  const [doctorGazeIntervals, setDoctorGazeIntervals] = useState([]);
+  const [patientGazeIntervals, setPatientGazeIntervals] = useState([]);
+  const [currentDoctorGaze, setCurrentDoctorGaze] = useState(null);
+  const [currentPatientGaze, setCurrentPatientGaze] = useState(null);
+  const [doctorGazeStartTime, setDoctorGazeStartTime] = useState(null);
+  const [patientGazeStartTime, setPatientGazeStartTime] = useState(null);
+
+  const handleDoctorGazeChange = (gazeType, time) => {
+    if (currentDoctorGaze === gazeType) return;
+    
+    setDoctorGazeIntervals(intervals => {
+      const newIntervals = [...intervals];
+      if (doctorGazeStartTime !== null && currentDoctorGaze !== null) {
+        newIntervals.push({
+          start: doctorGazeStartTime,
+          end: time,
+          gazeType: currentDoctorGaze
+        });
+      }
+      return newIntervals;
+    });
+    
+    setCurrentDoctorGaze(gazeType);
+    setDoctorGazeStartTime(time);
+  };
+
+  const handlePatientGazeChange = (gazeType, time) => {
+    if (currentPatientGaze === gazeType) return;
+    
+    setPatientGazeIntervals(intervals => {
+      const newIntervals = [...intervals];
+      if (patientGazeStartTime !== null && currentPatientGaze !== null) {
+        newIntervals.push({
+          start: patientGazeStartTime,
+          end: time,
+          gazeType: currentPatientGaze
+        });
+      }
+      return newIntervals;
+    });
+    
+    setCurrentPatientGaze(gazeType);
+    setPatientGazeStartTime(time);
+  };
 
   // Helper function to check if a time point conflicts with any interval
   const hasConflict = (intervals, startTime, endTime = null) => {
@@ -217,47 +266,46 @@ const App = () => {
   };
 
   const exportData = () => {
-    const timeToFrame = (time) => Math.round(time * frameRate);
-
-    const data = {
+    // Calculate percentages
+    const totalDuration = duration;
+    const typeDurations = [0, 0, 0];
+    
+    gazeIntervals.forEach(interval => {
+      const duration = interval.end - interval.start;
+      typeDurations[interval.gazeType - 1] += duration;
+    });
+    
+    const percentages = typeDurations.map(d => (d / totalDuration * 100).toFixed(2));
+  
+    const data = [{
+      timestamp: "total",
+      change_type: "percentages",
+      details: {
+        percentages: percentages.map(Number)
+      }
+    }, {
       videoInfo: {
         duration,
-        filename: videoSrc ? videoSrc.split("/").pop() : "unknown",
         frameRate,
-        totalFrames: Math.round(duration * frameRate),
+        totalFrames: Math.round(duration * frameRate)
       },
       manualAnnotations: {
-        leftPersonGaze: leftGazeIntervals.map((interval) => ({
-          startFrame: timeToFrame(interval.start),
-          endFrame: timeToFrame(interval.end),
-        })),
-        rightPersonGaze: rightGazeIntervals.map((interval) => ({
-          startFrame: timeToFrame(interval.start),
-          endFrame: timeToFrame(interval.end),
-        })),
-      },
-    };
-
-    if (aiAnnotations) {
-      data.aiAnnotations = {
-        leftPersonGaze: aiLeftGazeIntervals.map((interval) => ({
-          startFrame: timeToFrame(interval.start),
-          endFrame: timeToFrame(interval.end),
-        })),
-        rightPersonGaze: aiRightGazeIntervals.map((interval) => ({
-          startFrame: timeToFrame(interval.start),
-          endFrame: timeToFrame(interval.end),
-        })),
-      };
-    }
-
+        leftPersonGaze: gazeIntervals
+          .filter(interval => interval.gazeType === 1)
+          .map(interval => ({
+            startFrame: Math.round(interval.start * frameRate),
+            endFrame: Math.round(interval.end * frameRate)
+          }))
+      }
+    }];
+    
     const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
+      type: 'application/json'
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "gaze-analysis.json";
+    a.download = 'gaze-analysis.json';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -375,79 +423,25 @@ const App = () => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">
                   Manual Annotations
                 </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-32 text-right text-sm text-gray-600">
-                      Person on left
-                    </div>
-                    <div className="flex-1">
-                      <GazeTimeline
-                        duration={duration}
-                        currentTime={currentTime}
-                        intervals={leftGazeIntervals}
-                        isRecording={isRecordingLeft}
-                        recordingStartTime={leftRecordingStart}
-                        onTimeUpdate={handleTimeUpdate}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleStartLeftRecording}
-                        className={`w-16 px-2 py-1 text-sm rounded ${
-                          isRecordingLeft
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-100"
-                        }`}
-                        title="Shortcut: L"
-                      >
-                        {isRecordingLeft ? "stop" : "start"}
-                      </button>
-                      <button
-                        onClick={handleClearLeft}
-                        className="px-2 py-1 text-sm rounded bg-gray-100 hover:bg-gray-200"
-                        title="Clear all intervals"
-                      >
-                        clear
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="w-32 text-right text-sm text-gray-600">
-                      Person on right
-                    </div>
-                    <div className="flex-1">
-                      <GazeTimeline
-                        duration={duration}
-                        currentTime={currentTime}
-                        intervals={rightGazeIntervals}
-                        isRecording={isRecordingRight}
-                        recordingStartTime={rightRecordingStart}
-                        onTimeUpdate={handleTimeUpdate}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleStartRightRecording}
-                        className={`w-16 px-2 py-1 text-sm rounded ${
-                          isRecordingRight
-                            ? "bg-red-500 text-white"
-                            : "bg-gray-100"
-                        }`}
-                        title="Shortcut: R"
-                      >
-                        {isRecordingRight ? "stop" : "start"}
-                      </button>
-                      <button
-                        onClick={handleClearRight}
-                        className="px-2 py-1 text-sm rounded bg-gray-100 hover:bg-gray-200"
-                        title="Clear all intervals"
-                      >
-                        clear
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <DualGazeTimeline
+                  duration={duration}
+                  currentTime={currentTime}
+                  doctorIntervals={doctorGazeIntervals}
+                  patientIntervals={patientGazeIntervals}
+                  onTimeUpdate={handleTimeUpdate}
+                  onDoctorGazeChange={handleDoctorGazeChange}
+                  onPatientGazeChange={handlePatientGazeChange}
+                  currentDoctorGaze={currentDoctorGaze}
+                  currentPatientGaze={currentPatientGaze}
+                  doctorGazeStartTime={doctorGazeStartTime}
+                  patientGazeStartTime={patientGazeStartTime}
+                  setDoctorGazeIntervals={setDoctorGazeIntervals}
+                  setCurrentDoctorGaze={setCurrentDoctorGaze}
+                  setDoctorGazeStartTime={setDoctorGazeStartTime}
+                  setPatientGazeIntervals={setPatientGazeIntervals}
+                  setCurrentPatientGaze={setCurrentPatientGaze}
+                  setPatientGazeStartTime={setPatientGazeStartTime}
+                />
               </div>
 
               {aiAnnotations && (
