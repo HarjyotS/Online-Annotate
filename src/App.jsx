@@ -490,6 +490,31 @@ const App = () => {
                     })}
                     label="Patient"
                   />
+                  <AccuracyDisplay
+                    aiAnnotations={aiAnnotations}
+                    manualAnnotations={{
+                      leftPersonGaze: patientGazeIntervals
+                        .filter(i => i.gazeType === 1)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                      rightPersonGaze: doctorGazeIntervals
+                        .filter(i => i.gazeType === 1)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        })),
+                      rightPersonScreen: doctorGazeIntervals
+                        .filter(i => i.gazeType === 2)
+                        .map(interval => ({
+                          startFrame: Math.round(interval.start * frameRate),
+                          endFrame: Math.round(interval.end * frameRate)
+                        }))
+                    }}
+                    duration={duration}
+                    frameRate={frameRate}
+                  />
                 </div>
               </div>
             )}
