@@ -98,40 +98,48 @@ const App = () => {
   };
 
   const processAiAnnotations = (data) => {
-    console.log("Processing AI annotations:", data);
-  
-    // Find the entry containing the manualAnnotations
-    const annotationEntry = data.find(entry => entry.manualAnnotations);
+    const annotationEntry = data[1];  // Second object contains the annotations
     
-    if (!annotationEntry) {
-      console.error("No annotation data found in the uploaded file");
+    if (!annotationEntry.manualAnnotations) {
+      console.error("No annotation data found");
       return;
     }
-  
-    console.log("Found annotation entry:", annotationEntry);
-  
-    // Extract the annotations and convert to time-based intervals
-    const leftIntervals = annotationEntry.manualAnnotations.leftPersonGaze.map(interval => ({
-      start: interval.startFrame / frameRate,
-      end: interval.endFrame / frameRate
-    }));
-  
-    const rightIntervals = annotationEntry.manualAnnotations.rightPersonGaze.map(interval => ({
-      start: interval.startFrame / frameRate,
-      end: interval.endFrame / frameRate
-    }));
-  
-    console.log("Processed intervals:", {
-      leftIntervals,
-      rightIntervals
-    });
-  
-    // Update the state with the processed intervals
-    setAiLeftGazeIntervals(leftIntervals);
-    setAiRightGazeIntervals(rightIntervals);
+   
+    console.log("Found annotations:", annotationEntry.manualAnnotations);
     
-    // Store the original data for accuracy calculations
-    setAiAnnotations(annotationEntry.manualAnnotations);
+    // Convert AI annotations to time-based intervals
+    setAiAnnotations({
+      rightPersonScreen: annotationEntry.manualAnnotations.rightPersonScreen || [],
+      rightPersonGaze: annotationEntry.manualAnnotations.rightPersonGaze || [],
+      leftPersonGaze: annotationEntry.manualAnnotations.leftPersonGaze || []
+    });
+   };
+
+  const fillNeitherIntervals = ({ duration, gazeIntervals }) => {
+    if (!gazeIntervals.length) return [{ start: 0, end: duration }];
+    
+    const sortedIntervals = [...gazeIntervals].sort((a, b) => a.start - b.start);
+    const neitherIntervals = [];
+    
+    let lastEnd = 0;
+    sortedIntervals.forEach(interval => {
+      if (interval.start > lastEnd) {
+        neitherIntervals.push({
+          start: lastEnd,
+          end: interval.start
+        });
+      }
+      lastEnd = Math.max(lastEnd, interval.end);
+    });
+    
+    if (lastEnd < duration) {
+      neitherIntervals.push({
+        start: lastEnd,
+        end: duration
+      });
+    }
+    
+    return neitherIntervals;
   };
 
   const handleAiAnnotationsUpload = (event) => {
@@ -436,52 +444,55 @@ const App = () => {
                   setPatientGazeStartTime={setPatientGazeStartTime}
                 />
               </div>
-
               {aiAnnotations && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-4">
-                    AI Predictions
-                  </h3>
-                  <div className="space-y-4">
-                    <ComparisonTimeline
-                      duration={duration}
-                      currentTime={currentTime}
-                      intervals={aiLeftGazeIntervals}
-                      label="Person on left"
-                    />
-                    <ComparisonTimeline
-                      duration={duration}
-                      currentTime={currentTime}
-                      intervals={aiRightGazeIntervals}
-                      label="Person on right"
-                    />
-                    <AccuracyDisplay
-                      aiAnnotations={{
-                        leftPersonGaze: aiLeftGazeIntervals.map(interval => ({
-                          startFrame: Math.round(interval.start * frameRate),
-                          endFrame: Math.round(interval.end * frameRate)
-                        })),
-                        rightPersonGaze: aiRightGazeIntervals.map(interval => ({
-                          startFrame: Math.round(interval.start * frameRate),
-                          endFrame: Math.round(interval.end * frameRate)
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                  AI Predictions
+                </h3>
+                <div className="space-y-4">
+                  <ComparisonTimeline 
+                    duration={duration}
+                    currentTime={currentTime}
+                    gaze={aiAnnotations.rightPersonGaze?.map(interval => ({
+                      start: interval.startFrame / frameRate,
+                      end: interval.endFrame / frameRate  
+                    })) || []}
+                    screen={aiAnnotations.rightPersonScreen?.map(interval => ({
+                      start: interval.startFrame / frameRate,
+                      end: interval.endFrame / frameRate
+                    })) || []}
+                    neither={fillNeitherIntervals({
+                      duration,
+                      gazeIntervals: [
+                        ...(aiAnnotations.rightPersonGaze || []),
+                        ...(aiAnnotations.rightPersonScreen || [])
+                      ].map(interval => ({
+                        start: interval.startFrame / frameRate,
+                        end: interval.endFrame / frameRate
+                      }))
+                    })}
+                    label="Doctor"
+                  />
+                  <ComparisonTimeline
+                    duration={duration}
+                    currentTime={currentTime}
+                    gaze={aiAnnotations.leftPersonGaze?.map(interval => ({
+                      start: interval.startFrame / frameRate,
+                      end: interval.endFrame / frameRate
+                    })) || []}
+                    neither={fillNeitherIntervals({
+                      duration,
+                      gazeIntervals: (aiAnnotations.leftPersonGaze || [])
+                        .map(interval => ({
+                          start: interval.startFrame / frameRate,
+                          end: interval.endFrame / frameRate
                         }))
-                      }}
-                      manualAnnotations={{
-                        leftPersonGaze: leftGazeIntervals.map(interval => ({
-                          startFrame: Math.round(interval.start * frameRate),
-                          endFrame: Math.round(interval.end * frameRate)
-                        })),
-                        rightPersonGaze: rightGazeIntervals.map(interval => ({
-                          startFrame: Math.round(interval.start * frameRate),
-                          endFrame: Math.round(interval.end * frameRate)
-                        }))
-                      }}
-                      duration={duration}
-                      frameRate={frameRate}
-                    />
-                  </div>
+                    })}
+                    label="Patient"
+                  />
                 </div>
-              )}
+              </div>
+            )}
             </div>
           </div>
         )}
