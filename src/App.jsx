@@ -453,7 +453,7 @@ const App = () => {
               {aiAnnotations && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-4">
-                    AI Annotations
+                    AI Predictions
                   </h3>
                   <div className="space-y-4">
                     <ComparisonTimeline
