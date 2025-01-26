@@ -33,6 +33,25 @@
         { "startFrame": 1158, "endFrame": 1165 },
         { "startFrame": 1176, "endFrame": 1183 },
         { "startFrame": 1210, "endFrame": 1221 }
+      ],
+      "rightPersonScreen": [
+        { "startFrame": 0, "endFrame": 125 },
+        { "startFrame": 176, "endFrame": 225 },
+        { "startFrame": 250, "endFrame": 285 },
+        { "startFrame": 400, "endFrame": 411 },
+        { "startFrame": 452, "endFrame": 475 },
+        { "startFrame": 500, "endFrame": 757 },
+        { "startFrame": 808, "endFrame": 829 },
+        { "startFrame": 850, "endFrame": 899 },
+        { "startFrame": 932, "endFrame": 933 },
+        { "startFrame": 940, "endFrame": 949 },
+        { "startFrame": 964, "endFrame": 977 },
+        { "startFrame": 986, "endFrame": 989 },
+        { "startFrame": 1066, "endFrame": 1067 },
+        { "startFrame": 1100, "endFrame": 1113 },
+        { "startFrame": 1122, "endFrame": 1157 },
+        { "startFrame": 1166, "endFrame": 1175 },
+        { "startFrame": 1184, "endFrame": 1209 }
       ]
     }
   }

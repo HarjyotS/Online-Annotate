@@ -25,7 +25,7 @@ const DualGazeTimeline = ({
 
   const gazeColors = {
     1: '#4ade80', // Green for patient gaze
-    2: '#60a5fa', // Blue for screen gaze
+    2: '#ea4335', // Red for screen gaze
     3: '#94a3b8'  // Gray for neither
   };
 
